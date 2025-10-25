@@ -2,7 +2,7 @@
   import * as d3 from "d3";
   import { Scatter, Line } from "$lib";
   import { onMount } from "svelte";
-  import type { TMovie } from "../../types";
+  import type { TMovie } from "../types";
 
   // Reactive variable for storing the data
   let movies: TMovie[] = $state([]);
