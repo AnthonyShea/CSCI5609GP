@@ -46,6 +46,7 @@ declare module '$env/static/private' {
 	export const HOMEPATH: string;
 	export const IGCCSVC_DB: string;
 	export const INIT_CWD: string;
+	export const JAVA_HOME: string;
 	export const LANG: string;
 	export const LEVEL_ZERO_V1_SDK_PATH: string;
 	export const LOCALAPPDATA: string;
@@ -62,7 +63,6 @@ declare module '$env/static/private' {
 	export const npm_config_node_gyp: string;
 	export const npm_config_noproxy: string;
 	export const npm_config_npm_version: string;
-	export const npm_config_open: string;
 	export const npm_config_prefix: string;
 	export const npm_config_userconfig: string;
 	export const npm_config_user_agent: string;
@@ -163,6 +163,7 @@ declare module '$env/dynamic/private' {
 		HOMEPATH: string;
 		IGCCSVC_DB: string;
 		INIT_CWD: string;
+		JAVA_HOME: string;
 		LANG: string;
 		LEVEL_ZERO_V1_SDK_PATH: string;
 		LOCALAPPDATA: string;
@@ -179,7 +180,6 @@ declare module '$env/dynamic/private' {
 		npm_config_node_gyp: string;
 		npm_config_noproxy: string;
 		npm_config_npm_version: string;
-		npm_config_open: string;
 		npm_config_prefix: string;
 		npm_config_userconfig: string;
 		npm_config_user_agent: string;
