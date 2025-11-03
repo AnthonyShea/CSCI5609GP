@@ -9,6 +9,9 @@
   // Name to ISO3 code map (built post-load for matching)
   let nameToCode: Map<string, string> = $state(new Map());
 
+  // Store data grouped by country code for efficient lookup
+  let countryData: Map<string, {year: number, value: number}[]> = $state(new Map());
+
   // Years range for slider
   let years: number[] = $derived(
     emissionsData.length > 0 ? [...new Set(emissionsData.map((d) => d.year))].sort((a, b) => a - b) : []
@@ -16,9 +19,6 @@
 
   // Default to a safe year (updated post-load)
   let selectedYear: number = $state(1960);
-
-  // Store current year emissions separately
-  let currentYearEmissions: Map<string, number> = $state(new Map());
 
   // Rotation state for interactivity
   let rotation: [number, number] = $state([0, 0]);
@@ -31,18 +31,35 @@
   let lastInteractionTime = $state(0);
   const AUTO_ROTATION_RESUME_DELAY = 5000; // 5 seconds
 
-  // FIXED: Update currentYearEmissions when selectedYear changes - NO INFINITE LOOP
+  // Function to find closest year for a country
+  function getClosestYearData(code: string, targetYear: number): number {
+    if (!code || !countryData.has(code)) return 0;
+    
+    const countryYears = countryData.get(code)!;
+    if (countryYears.length === 0) return 0;
+    
+    // Find the closest year
+    let closest = countryYears[0];
+    let minDiff = Math.abs(closest.year - targetYear);
+    
+    for (const data of countryYears) {
+      const diff = Math.abs(data.year - targetYear);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = data;
+      }
+    }
+    
+    return closest.value;
+  }
+
+  // FIXED: Update visualization when year changes
   $effect(() => {
     const year = selectedYear;
-    if (emissionsData.length === 0) return;
-    
-    const newMap = new Map<string, number>();
-    emissionsData.forEach((d) => {
-      if (d.year === year) {
-        newMap.set(d.code, d.value);
-      }
-    });
-    currentYearEmissions = newMap;
+    // Force visualization update when year changes
+    if (world && nameToCode.size > 0 && gr) {
+      updateViz();
+    }
   });
 
   // Snap to latest year after data loads
@@ -89,14 +106,27 @@
 
       // Build name -> code map (use first code per entity if duplicates)
       const tempMap = new Map<string, string>();
+      const tempCountryData = new Map<string, {year: number, value: number}[]>();
+      
       emissionsData.forEach((d) => {
-        if (d.entity && !tempMap.has(d.entity)) {
+        if (d.entity && d.code && !tempMap.has(d.entity)) {
           tempMap.set(d.entity, d.code);
         }
+        
+        // Group data by country code for efficient lookup
+        if (d.code) {
+          if (!tempCountryData.has(d.code)) {
+            tempCountryData.set(d.code, []);
+          }
+          tempCountryData.get(d.code)!.push({ year: d.year, value: d.value });
+        }
       });
+      
       nameToCode = tempMap;
+      countryData = tempCountryData;
 
       console.log("Loaded Emissions Data:", emissionsData.length, "rows");
+      console.log("Country data samples:", Array.from(tempCountryData.entries()).slice(0, 3));
     } catch (error) {
       console.error("Error loading CSV:", error);
     }
@@ -173,19 +203,29 @@
     }
   }
 
-  // Update visualization for current year
+  // Update visualization for current year - FIXED to use closest year
   function updateViz() {
     if (!gr || !world || nameToCode.size === 0) return;
+
+    console.log(`Updating visualization for year: ${selectedYear}`);
 
     const features = world.features.map((f: any) => {
       const countryName = f.properties.name;
       const code = nameToCode.get(countryName);
-      const emission = code ? currentYearEmissions.get(code) ?? 0 : 0;
-      return { ...f, emission };
+      const emission = code ? getClosestYearData(code, selectedYear) : 0;
+      return { ...f, emission, countryName, code };
     });
 
+    // Log some samples to verify data is updating
+    const sampleCountries = features.filter(f => 
+      ['United States', 'China', 'India', 'Germany', 'Brazil'].includes(f.countryName)
+    );
+    console.log("Sample country emissions:", sampleCountries.map(f => 
+      `${f.countryName}: ${f.emission.toFixed(2)}`
+    ));
+
     gr.selectAll("path")
-      .data(features)
+      .data(features, (d: any) => d.properties.name) // Use country name as key
       .join("path")
       .attr("d", pathGen)
       .attr("fill", (d: any) => color(d.emission))
@@ -193,22 +233,24 @@
       .attr("stroke-width", 0.5)
       .style("cursor", "grab")
       .on("mouseover", (event, d) => {
-        if (d.emission > 0) {
-          // Create tooltip
-          const tooltip = d3.select("body")
-            .append("div")
-            .attr("class", "tooltip")
-            .style("position", "absolute")
-            .style("background", "rgba(0,0,0,0.8)")
-            .style("color", "white")
-            .style("padding", "5px 10px")
-            .style("border-radius", "4px")
-            .style("font-size", "12px")
-            .style("pointer-events", "none")
-            .style("z-index", "1000");
-          
-          tooltip.html(`${d.properties.name}<br/>${d.emission.toFixed(2)} tons/capita`);
-        }
+        // Create tooltip
+        const tooltip = d3.select("body")
+          .append("div")
+          .attr("class", "tooltip")
+          .style("position", "absolute")
+          .style("background", "rgba(0,0,0,0.8)")
+          .style("color", "white")
+          .style("padding", "8px 12px")
+          .style("border-radius", "4px")
+          .style("font-size", "14px")
+          .style("pointer-events", "none")
+          .style("z-index", "1000");
+        
+        tooltip.html(`
+          <strong>${d.countryName}</strong><br/>
+          Year: ${selectedYear}<br/>
+          Emissions: ${d.emission.toFixed(2)} tons/capita
+        `);
       })
       .on("mousemove", (event) => {
         d3.select(".tooltip")
@@ -258,15 +300,6 @@
       startAutoRotation();
     }
   });
-
-  // FIXED: Update visualization when data changes - SIMPLIFIED
-  $effect(() => {
-    // This effect only runs when currentYearEmissions is updated
-    // which happens when selectedYear changes, but avoids the infinite loop
-    if (world && nameToCode.size > 0 && gr && currentYearEmissions.size > 0) {
-      updateViz();
-    }
-  });
 </script>
 
 <div class="container">
@@ -292,6 +325,7 @@
         ></svg>
         <div class="globe-controls">
           <p>Click and drag to rotate the globe • Auto-rotation: {autoRotationEnabled ? 'ON' : 'OFF'}</p>
+          <p class="data-note">Using closest available year data for each country</p>
         </div>
       </div>
       
@@ -363,6 +397,12 @@
     font-size: 0.9rem;
     color: #666;
     text-align: center;
+  }
+  .data-note {
+    font-size: 0.8rem;
+    font-style: italic;
+    margin-top: 0.25rem;
+    color: #888;
   }
   .slider-container {
     margin-top: 1.5rem;
