@@ -36,6 +36,6 @@ declare module "$app/types" {
 		};
 		Pathname(): "/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/FullSizeRender.jpg" | "/robots.txt" | "/summer_movies.csv" | string & {};
+		Asset(): "/FullSizeRender.jpg" | "/co-emissions-per-capita.csv" | "/robots.txt" | "/summer_movies.csv" | string & {};
 	}
 }

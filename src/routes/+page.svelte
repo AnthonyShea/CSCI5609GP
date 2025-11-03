@@ -1,143 +1,400 @@
 <script lang="ts">
   import * as d3 from "d3";
-  import { Scatter, Line } from "$lib";
+  import * as topojson from "topojson-client";
   import { onMount } from "svelte";
-  import type { TMovie } from "../types";
 
-  // Reactive variable for storing the data
-  let movies: TMovie[] = $state([]);
+  // Reactive data store
+  let emissionsData: { entity: string; code: string; year: number; value: number }[] = $state([]);
 
-  let yearRange: [Date, Date] | undefined = $state();
+  // Name to ISO3 code map (built post-load for matching)
+  let nameToCode: Map<string, string> = $state(new Map());
 
-  function getYearCountArray(movies: TMovie[]) {
-      let yearCount: { [year: number]: number } = {};
-      const allYears = [...new Set(movies.map((d) => d.year.getFullYear()))];
-      for (let year of allYears) {
-          yearCount[year] = movies.filter(
-              (d) => d.year.getFullYear() == year,
-          ).length;
+  // Years range for slider
+  let years: number[] = $derived(
+    emissionsData.length > 0 ? [...new Set(emissionsData.map((d) => d.year))].sort((a, b) => a - b) : []
+  );
+
+  // Default to a safe year (updated post-load)
+  let selectedYear: number = $state(1960);
+
+  // Store current year emissions separately
+  let currentYearEmissions: Map<string, number> = $state(new Map());
+
+  // Rotation state for interactivity
+  let rotation: [number, number] = $state([0, 0]);
+  let isDragging = $state(false);
+  let startRotation: [number, number] = $state([0, 0]);
+  let mouseStart: [number, number] = $state([0, 0]);
+  
+  // Auto-rotation control
+  let autoRotationEnabled = $state(true);
+  let lastInteractionTime = $state(0);
+  const AUTO_ROTATION_RESUME_DELAY = 5000; // 5 seconds
+
+  // FIXED: Update currentYearEmissions when selectedYear changes - NO INFINITE LOOP
+  $effect(() => {
+    const year = selectedYear;
+    if (emissionsData.length === 0) return;
+    
+    const newMap = new Map<string, number>();
+    emissionsData.forEach((d) => {
+      if (d.year === year) {
+        newMap.set(d.code, d.value);
       }
-
-      // Convert the map to an array of { year, count } objects
-      const yearCountArray = Object.entries(yearCount).map(
-          ([year, count]) => ({
-              x: new Date(year),
-              y: count as number,
-          }),
-      );
-
-      // Sort the array by year in ascending order
-      yearCountArray.sort((a, b) => (a.x < b.x ? -1 : 1));
-      return yearCountArray;
-  }
-
-  let yearCountArray = $derived(getYearCountArray(movies));
-
-  type TAxisSelection = {
-      x: keyof TMovie;
-      y: keyof TMovie;
-      size: keyof TMovie;
-  };
-
-  // tip4: axisSelection is a reactive variable that stores the axis selection
-  let axisSelection: TAxisSelection = $state({
-      x: "year",
-      y: "average_rating",
-      size: "num_votes",
+    });
+    currentYearEmissions = newMap;
   });
 
-  // Function to load the CSV
+  // Snap to latest year after data loads
+  $effect(() => {
+    if (years.length > 0 && selectedYear === 1960) {
+      selectedYear = years[years.length - 1];
+    }
+  });
+
+  // Globe dimensions
+  const width = 500;
+  const height = 400;
+  const radius = Math.min(width, height) / 2 - 10;
+
+  // D3 selections
+  let svg: SVGSVGElement;
+  let gr: d3.Selection<SVGGElement, any, any, any>;
+
+  // Projection and rotation
+  let projection = d3.geoOrthographic()
+    .scale(radius)
+    .translate([width / 2, height / 2])
+    .clipAngle(90);
+
+  let pathGen = d3.geoPath().projection(projection);
+
+  // Color scale (0-20 tons CO2/person; adjust domain if your max differs)
+  let color = d3.scaleSequential(d3.interpolateReds).domain([0, 20]);
+
+  // World data
+  let world: any;
+
+  // Load CSV and build nameToCode map
   async function loadCsv() {
-      try {
-          const csvUrl = "./summer_movies.csv";
-          movies = await d3.csv(csvUrl, (row) => {
-              // all values are strings, so use row conversion function to format them
-              return {
-                  ...row,
-                  num_votes: Number(row.num_votes),
-                  runtime_minutes: Number(row.runtime_minutes),
-                  genres: row.genres.split(","),
-                  year: new Date(row.year),
-                  average_rating: Number(row.average_rating),
-              };
-          });
+    try {
+      const csvUrl = "./co-emissions-per-capita.csv";
+      const rawData = await d3.csv(csvUrl);
+      emissionsData = rawData.map((row) => ({
+        entity: row.Entity || "",
+        code: row.Code || "",
+        year: Number(row.Year) || 0,
+        value: Number(row["Annual CO₂ emissions (per capita)"]) || 0,
+      }));
 
-          console.log("Loaded CSV Data:", movies);
-      } catch (error) {
-          console.error("Error loading CSV:", error);
-      }
+      // Build name -> code map (use first code per entity if duplicates)
+      const tempMap = new Map<string, string>();
+      emissionsData.forEach((d) => {
+        if (d.entity && !tempMap.has(d.entity)) {
+          tempMap.set(d.entity, d.code);
+        }
+      });
+      nameToCode = tempMap;
+
+      console.log("Loaded Emissions Data:", emissionsData.length, "rows");
+    } catch (error) {
+      console.error("Error loading CSV:", error);
+    }
   }
-  // Call the loader when the component mounts
-  onMount(loadCsv);
 
-  // tip4: below are the derived stores for the options of the selectors
-  const attrOptionsX = $derived(movies[0] ? Object.keys(movies[0]) : []);
-  const attrOptionsY = $derived(
-      movies[0] ? Object.keys(movies[0]).filter((d) => d != "genres") : [],
-  );
-  const attrOptionsS = $derived(
-      movies[0] ? Object.keys(movies[0]).filter((d) => d != "genres") : [],
-  );
+  // Load world topojson
+  async function loadWorld() {
+    try {
+      const topoUrl = "https://unpkg.com/world-atlas@2.0.2/countries-110m.json";
+      const topoData = await d3.json(topoUrl);
+      world = topoData ? topojson.feature(topoData, topoData.objects.countries) : null;
+      console.log("Loaded World Data:", world?.features.length, "countries");
+    } catch (error) {
+      console.error("Error loading World:", error);
+    }
+  }
+
+  // Handle user interaction - disable auto-rotation temporarily
+  function handleUserInteraction() {
+    autoRotationEnabled = false;
+    lastInteractionTime = Date.now();
+  }
+
+  // Check if we should resume auto-rotation
+  function checkResumeAutoRotation() {
+    if (!autoRotationEnabled && Date.now() - lastInteractionTime > AUTO_ROTATION_RESUME_DELAY) {
+      autoRotationEnabled = true;
+    }
+  }
+
+  // Mouse event handlers for globe interaction
+  function handleMouseDown(event: MouseEvent) {
+    isDragging = true;
+    mouseStart = [event.clientX, event.clientY];
+    startRotation = [...rotation];
+    svg.style.cursor = 'grabbing';
+    handleUserInteraction();
+  }
+
+  function handleMouseMove(event: MouseEvent) {
+    if (!isDragging) return;
+    
+    const [currentX, currentY] = [event.clientX, event.clientY];
+    const [startX, startY] = mouseStart;
+    const [startRotX, startRotY] = startRotation;
+    
+    // Calculate new rotation (sensitivity can be adjusted)
+    const sensitivity = 0.5;
+    const newRotX = startRotX + (currentX - startX) * sensitivity;
+    const newRotY = Math.max(-90, Math.min(90, startRotY + (startY - currentY) * sensitivity));
+    
+    rotation = [newRotX, newRotY];
+    updateProjection();
+    handleUserInteraction();
+  }
+
+  function handleMouseUp() {
+    isDragging = false;
+    svg.style.cursor = 'grab';
+    handleUserInteraction();
+  }
+
+  // Handle slider interaction
+  function handleSliderInput(event: Event) {
+    const target = event.target as HTMLInputElement;
+    selectedYear = parseInt(target.value);
+    handleUserInteraction();
+  }
+
+  function updateProjection() {
+    projection.rotate(rotation);
+    if (gr) {
+      gr.selectAll("path").attr("d", pathGen);
+    }
+  }
+
+  // Update visualization for current year
+  function updateViz() {
+    if (!gr || !world || nameToCode.size === 0) return;
+
+    const features = world.features.map((f: any) => {
+      const countryName = f.properties.name;
+      const code = nameToCode.get(countryName);
+      const emission = code ? currentYearEmissions.get(code) ?? 0 : 0;
+      return { ...f, emission };
+    });
+
+    gr.selectAll("path")
+      .data(features)
+      .join("path")
+      .attr("d", pathGen)
+      .attr("fill", (d: any) => color(d.emission))
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 0.5)
+      .style("cursor", "grab")
+      .on("mouseover", (event, d) => {
+        if (d.emission > 0) {
+          // Create tooltip
+          const tooltip = d3.select("body")
+            .append("div")
+            .attr("class", "tooltip")
+            .style("position", "absolute")
+            .style("background", "rgba(0,0,0,0.8)")
+            .style("color", "white")
+            .style("padding", "5px 10px")
+            .style("border-radius", "4px")
+            .style("font-size", "12px")
+            .style("pointer-events", "none")
+            .style("z-index", "1000");
+          
+          tooltip.html(`${d.properties.name}<br/>${d.emission.toFixed(2)} tons/capita`);
+        }
+      })
+      .on("mousemove", (event) => {
+        d3.select(".tooltip")
+          .style("left", (event.pageX + 10) + "px")
+          .style("top", (event.pageY - 10) + "px");
+      })
+      .on("mouseout", () => {
+        d3.selectAll(".tooltip").remove();
+      });
+  }
+
+  // Auto-rotation when not interacting
+  function startAutoRotation() {
+    let lastTime: number | null = null;
+    
+    function rotate(timestamp: number) {
+      if (!lastTime) lastTime = timestamp;
+      const delta = timestamp - lastTime;
+      
+      // Check if we should resume auto-rotation
+      checkResumeAutoRotation();
+      
+      if (!isDragging && autoRotationEnabled) {
+        // Slow auto-rotation when not interacting
+        rotation = [rotation[0] + delta * 0.02, rotation[1]];
+        updateProjection();
+      }
+      
+      lastTime = timestamp;
+      requestAnimationFrame(rotate);
+    }
+    
+    requestAnimationFrame(rotate);
+  }
+
+  onMount(async () => {
+    await Promise.all([loadCsv(), loadWorld()]);
+    if (svg && world) {
+      gr = d3.select(svg).append("g");
+      
+      // Add mouse event listeners for interactivity
+      svg.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      
+      updateViz();
+      startAutoRotation();
+    }
+  });
+
+  // FIXED: Update visualization when data changes - SIMPLIFIED
+  $effect(() => {
+    // This effect only runs when currentYearEmissions is updated
+    // which happens when selectedYear changes, but avoids the infinite loop
+    if (world && nameToCode.size > 0 && gr && currentYearEmissions.size > 0) {
+      updateViz();
+    }
+  });
 </script>
 
 <div class="container">
-  <h1>Summer Movies</h1>
+  <h1>CO2 Emissions Per Capita Globe Visualization</h1>
 
-  <p>Here are {movies.length == 0 ? "..." : movies.length + " "} movies</p>
-  {#if movies.length > 0}
-      <div class="selectors">
-          <!-- tip4: add the selectors for binding data attributes with x axis, y axis, and size. You will need to use bind:value for each selector.  -->
-          <label>X Axis: </label>
-          <select bind:value={axisSelection.x}>
-              {#each attrOptionsX as option}
-                  <option value={option}>{option}</option>
-              {/each}
-          </select>
+  <div class="layout">
+    <!-- Left side: Placeholder for future visualizations -->
+    <div class="left-panel">
+      <h2>Future Visualizations</h2>
+      <p>Left panel for additional charts (e.g., time series from emissionsData, bar charts by region).</p>
+      <!-- Integrate your old Scatter/Line here, e.g., <Scatter data={emissionsData} /> -->
+    </div>
 
-          <label>Y Axis: </label>
-          <select bind:value={axisSelection.y}>
-              {#each attrOptionsY as option}
-                  <option value={option}>{option}</option>
-              {/each}
-          </select>
-
-          <label>Size: </label>
-          <select bind:value={axisSelection.size}>
-              {#each attrOptionsS as option}
-                  <option value={option}>{option}</option>
-              {/each}
-          </select>
+    <!-- Right side: Globe -->
+    <div class="right-panel">
+      <h2>Global CO2 Emissions ({selectedYear})</h2>
+      <div class="globe-container">
+        <svg 
+          {width} 
+          {height} 
+          bind:this={svg}
+          class="globe"
+        ></svg>
+        <div class="globe-controls">
+          <p>Click and drag to rotate the globe • Auto-rotation: {autoRotationEnabled ? 'ON' : 'OFF'}</p>
+        </div>
       </div>
-
-      <Scatter
-          movies={yearRange
-              ? movies.filter(
-                    (d) => d.year <= yearRange[1] && d.year >= yearRange[0],
-                )
-              : movies}
-          x={axisSelection.x}
-          y={axisSelection.y}
-          size={axisSelection.size}
-      />
-      <br />
-
-      <Line data={yearCountArray} bind:yearRange />
-  {/if}
+      
+      <!-- Year Slider -->
+      {#if years.length > 0}
+        <div class="slider-container">
+          <label for="year-slider">Select Year: {selectedYear}</label>
+          <input 
+            id="year-slider"
+            type="range" 
+            value={selectedYear}
+            on:input={handleSliderInput}
+            min={years[0]} 
+            max={years[years.length - 1]} 
+            step="1"
+            class="slider"
+          />
+          <div class="year-range">
+            <span>{years[0]}</span>
+            <span>{years[years.length - 1]}</span>
+          </div>
+        </div>
+      {:else}
+        <p>Loading data...</p>
+      {/if}
+    </div>
+  </div>
 </div>
 
 <style>
   .container {
-      width: 60vw;
-      margin: 10px auto;
-      padding: 10px;
+    width: 90vw;
+    margin: 10px auto;
+    padding: 10px;
   }
-  .selectors {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 1rem;
-      align-items: center;
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 1rem;
+  }
+  .left-panel, .right-panel {
+    border: 1px solid #ddd;
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  .left-panel {
+    background-color: #f9f9f9;
+  }
+  .globe-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .globe {
+    display: block;
+    margin: 0 auto;
+    background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+    border-radius: 50%;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    cursor: grab;
+  }
+  .globe:active {
+    cursor: grabbing;
+  }
+  .globe-controls {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+  }
+  .slider-container {
+    margin-top: 1.5rem;
+    text-align: center;
+  }
+  .slider {
+    width: 100%;
+    margin: 0.5rem 0;
+  }
+  .year-range {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.25rem;
   }
   label {
-      font-weight: bold;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Tooltip styles */
+  :global(.tooltip) {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+    padding: 8px 12px !important;
+    border-radius: 4px !important;
+    font-size: 14px !important;
+    pointer-events: none !important;
+    z-index: 1000 !important;
+    white-space: nowrap !important;
   }
 </style>
