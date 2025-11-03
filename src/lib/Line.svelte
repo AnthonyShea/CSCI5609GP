@@ -1,133 +1,178 @@
 <script lang="ts">
   import * as d3 from "d3";
-  type TProps = {
-    data: Array<{ x: Date; y: number }>;
-    yearRange: [Date, Date] | undefined;
+  import { onMount } from "svelte";
+
+  let { 
+    countryData = null,
+    countryName = null,
+    width = 400,
+    height = 300
+  } = $props<{
+    countryData: { year: number; value: number }[] | null;
+    countryName: string | null;
     width?: number;
     height?: number;
-  };
-  let {
-    data = [],
-    yearRange = $bindable(),
-    height = 150,
-    width = 600,
-  }: TProps = $props();
+  }>();
 
-  const margin = {
-    top: 15,
-    bottom: 50,
-    left: 30,
-    right: 10,
-  };
+  let svg: SVGSVGElement;
+  let margin = { top: 20, right: 30, bottom: 40, left: 50 };
+  let innerWidth = width - margin.left - margin.right;
+  let innerHeight = height - margin.top - margin.bottom;
 
-  let usableArea = {
-    top: margin.top,
-    right: width - margin.right,
-    bottom: height - margin.bottom,
-    left: margin.left,
-  };
-
-  const xScale = $derived(
-    d3
-      .scaleTime()
-      .domain(d3.extent(data.map((d) => d.x)) as [Date, Date])
-      .range([usableArea.left, usableArea.right])
-  );
-
-  const yScale = $derived(
-    d3
-      .scaleLinear()
-      .domain(d3.extent(data.map((d) => d.y)) as [number, number])
-      .range([usableArea.bottom, usableArea.top])
-  );
-
-  // tip2: this line generator will create a svg path from the data
-  const lineGenerator = d3
-      .line()
-      .x((d) => xScale(d.x)) // Map x-coordinate
-      .y((d) => yScale(d.y)); // Map y-coordinate
-      // .curve(d3.curveBasis);
-
-  const path = $derived(lineGenerator(data));
-
-  let xAxis: any = $state(),
-    yAxis: any = $state(),
-    brushElement: any = $state();
-
-  function updateAxis() {
-    if (!xScale || !yScale) {
+  function drawChart() {
+    if (!countryData || countryData.length === 0 || !countryName) {
+      d3.select(svg).selectAll("*").remove();
       return;
     }
-    d3.select(xAxis).call(d3.axisBottom(xScale));
 
-    d3.select(yAxis).call(d3.axisLeft(yScale));
+    // Clear previous chart
+    d3.select(svg).selectAll("*").remove();
+
+    // Create scales
+    const xScale = d3.scaleLinear()
+      .domain(d3.extent(countryData, d => d.year) as [number, number])
+      .range([0, innerWidth]);
+
+    const yScale = d3.scaleLinear()
+      .domain([0, d3.max(countryData, d => d.value) as number])
+      .range([innerHeight, 0]);
+
+    // Create line generator
+    const line = d3.line<{ year: number; value: number }>()
+      .x(d => xScale(d.year))
+      .y(d => yScale(d.value))
+      .curve(d3.curveMonotoneX);
+
+    // Create SVG group
+    const g = d3.select(svg)
+      .attr("width", width)
+      .attr("height", height)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Add X axis
+    g.append("g")
+      .attr("transform", `translate(0,${innerHeight})`)
+      .call(d3.axisBottom(xScale).ticks(6).tickFormat(d3.format("d")))
+      .append("text")
+      .attr("x", innerWidth / 2)
+      .attr("y", 35)
+      .attr("fill", "black")
+      .style("text-anchor", "middle")
+      .text("Year");
+
+    // Add Y axis
+    g.append("g")
+      .call(d3.axisLeft(yScale))
+      .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", -35)
+      .attr("x", -innerHeight / 2)
+      .attr("fill", "black")
+      .style("text-anchor", "middle")
+      .text("CO₂ Emissions (tons/capita)");
+
+    // Add grid lines
+    g.append("g")
+      .attr("class", "grid")
+      .attr("transform", `translate(0,${innerHeight})`)
+      .call(d3.axisBottom(xScale)
+        .ticks(6)
+        .tickSize(-innerHeight)
+        .tickFormat("" as any)
+      )
+      .style("stroke-dasharray", "3,3")
+      .style("opacity", 0.2);
+
+    g.append("g")
+      .attr("class", "grid")
+      .call(d3.axisLeft(yScale)
+        .tickSize(-innerWidth)
+        .tickFormat("" as any)
+      )
+      .style("stroke-dasharray", "3,3")
+      .style("opacity", 0.2);
+
+    // Add line
+    g.append("path")
+      .datum(countryData)
+      .attr("fill", "none")
+      .attr("stroke", "#e74c3c")
+      .attr("stroke-width", 2)
+      .attr("d", line);
+
+    // Add dots
+    g.selectAll(".dot")
+      .data(countryData)
+      .enter()
+      .append("circle")
+      .attr("class", "dot")
+      .attr("cx", d => xScale(d.year))
+      .attr("cy", d => yScale(d.value))
+      .attr("r", 4)
+      .attr("fill", "#e74c3c")
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 1.5);
+
+    // Add title
+    g.append("text")
+      .attr("x", innerWidth / 2)
+      .attr("y", -5)
+      .attr("text-anchor", "middle")
+      .style("font-size", "16px")
+      .style("font-weight", "bold")
+      .text(`CO₂ Emissions: ${countryName}`);
   }
 
-  function handleBrush(event: any) {
-    // tip3: this function will be called at Brush end, and we will use it to update the yearRange
-    const selection = event.selection;
-    if (selection) {
-        const [start, end] = selection.map(xScale.invert); // Convert from pixel values to Date
-        yearRange = [start, end]
-    } else {
-        yearRange = undefined
-    }
-  }
-
-  function setupBrush() {
-    const brush = d3
-      .brushX()
-      .extent([
-        [usableArea.left, usableArea.top],
-        [usableArea.right, usableArea.bottom],
-      ])
-      .on("brush end", handleBrush);
-
-    d3.select(brushElement).call(brush);
-  }
-
-  // the $effect function is used to run a function whenever the reactive variables change, also known as a side effect
+  // Redraw chart when data changes
   $effect(() => {
-    setupBrush();
-    updateAxis();
+    drawChart();
+  });
+
+  onMount(() => {
+    drawChart();
   });
 </script>
 
-<svg {width} {height} class="line">
-  <!-- tip2: add the line here, the circles can help validate your curve -->
-  <path d={path} fill="none" stroke="steelblue" stroke-width="1" />
-  <!-- <g class="points">
-        {#each data as point (point.x)}
-            <circle
-                cx={xScale(point.x)}
-                cy={yScale(point.y)}
-                r={2}
-                fill="steelblue"
-            />
-        {/each}
-    </g> -->
-  <g transform="translate(0, {usableArea.bottom})" bind:this={xAxis} />
-  <g transform="translate({usableArea.left}, 0)" bind:this={yAxis} />
-
-  <!-- tip3: add the brush here. -->
-  <g class="brush" bind:this={brushElement} />
-
-  <text x={width / 2} y={height - 5} text-anchor="middle">
-    Number of Movies by Year:
-  </text>
-  {#if yearRange}
-    <text x={width / 2} y={height - 20} text-anchor="middle">
-      {yearRange[0].getFullYear()} - {yearRange[1].getFullYear()}
-    </text>
+<div class="line-graph-container">
+  {#if countryData && countryData.length > 0 && countryName}
+    <svg bind:this={svg}></svg>
   {:else}
-    <text x={width / 2} y={height - 20} text-anchor="middle">
-      Brush to select a range
-    </text>
+    <div class="no-data">
+      <p>Click on a country in the globe to view its CO₂ emissions timeline</p>
+    </div>
   {/if}
-</svg>
+</div>
 
 <style>
-  .line {
+  .line-graph-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .no-data {
+    text-align: center;
+    color: #666;
+    padding: 2rem;
+    font-style: italic;
+  }
+  
+  svg {
     display: block;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 10px;
+  }
+  
+  :global(.grid line) {
+    stroke: lightgrey;
+  }
+  
+  :global(.grid path) {
+    stroke-width: 0;
   }
 </style>
