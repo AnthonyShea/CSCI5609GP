@@ -443,7 +443,7 @@
               id="year-slider"
               type="range"
               value={selectedYear}
-              on:input={handleSliderInput}
+              oninput={handleSliderInput}
               min={years[0]}
               max={years[years.length - 1]}
               step="1"
