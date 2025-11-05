@@ -36,6 +36,6 @@ declare module "$app/types" {
 		};
 		Pathname(): "/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/FullSizeRender.jpg" | "/co-emissions-per-capita.csv" | "/co2_state_coal.csv" | "/co2_state_natural_gas.csv" | "/co2_state_petroleum.csv" | "/co2_state_total.csv" | "/robots.txt" | "/summer_movies.csv" | string & {};
+		Asset(): "/co-emissions-per-capita.csv" | "/co2_state_coal.csv" | "/co2_state_natural_gas.csv" | "/co2_state_petroleum.csv" | "/co2_state_total.csv" | "/owid-co2-data.csv" | string & {};
 	}
 }

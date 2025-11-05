@@ -1,13 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as d3 from "d3";
-  import { Globe, Line } from "$lib";
   import BarChart from "$lib/BarChart.svelte";
   import PieChart from "$lib/PieChart.svelte";
   import AreaChart from "$lib/AreaChart.svelte";
   import ComparisonChart from "$lib/ComparisonChart.svelte";
   import NarrativeSection from "$lib/NarrativeSection.svelte";
-  import { Globe, Line, Bar } from "$lib";
+  import { Globe/*, Line, Bar */} from "$lib";
   import type { TStateEmissions } from "../co2types_states";
 
   // Reactive data store
