@@ -58,7 +58,7 @@
     {
       id: "story-1",
       title: "Top Polluters Today",
-      question: "Who are the biggest per-capita polluters in 2020?",
+      question: "Who are the biggest per-capita polluters today (2020)?",
       insight: "Oil-rich nations dominate:",
       bullets: [
         "Qatar: 37 tons/person (highest in world)",
@@ -75,9 +75,15 @@
     },
     {
       id: "story-2",
-      title: "The Historical Leaders",
+      title: "Journey Back in Time",
       question: "Has it always been this way?",
-      insight: "In 1960, the USA led global emissions at 16 tons/capita while China was under 1 ton/capita. This dramatic difference reflects the early industrialization of Western nations and the agricultural economy of China at that time.",
+      insight: "1960: USA dominated, China minimal:",
+      bullets: [
+        "USA: 16 tons/capita (industrial giant)",
+        "China: <1 ton/capita (agricultural economy)",
+        "Europe: 5-8 tons/capita (post-war rebuilding)",
+        "Reflects early industrialization of West"
+      ],
       type: "data-story" as const,
       config: {
         year: 1960,
