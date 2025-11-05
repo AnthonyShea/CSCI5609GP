@@ -11,13 +11,17 @@
   // Reactive data store
   let emissionsData: { entity: string; code: string; year: number; value: number }[] = $state([]);
 
-  // Years range for slider
+  // Years range for slider - filter to valid range (1960-2023)
   let years: number[] = $derived(
-    emissionsData.length > 0 ? [...new Set(emissionsData.map((d) => d.year))].sort((a, b) => a - b) : []
+    emissionsData.length > 0
+      ? [...new Set(emissionsData.map((d) => d.year))]
+          .filter(year => year >= 1960 && year <= 2023)
+          .sort((a, b) => a - b)
+      : []
   );
 
-  // Default to a safe year (updated post-load)
-  let selectedYear: number = $state(1960);
+  // Default to 2020 (current data perspective)
+  let selectedYear: number = $state(2020);
 
   // Selected country for line graph
   let selectedCountry: string | null = $state(null);
@@ -39,7 +43,12 @@
       id: "intro",
       title: "Understanding Global CO₂ Emissions",
       question: "How do we measure the climate impact of nations?",
-      insight: "CO₂ emissions per capita reveal which countries produce the most greenhouse gases relative to their population. This metric is more meaningful than total emissions, as it accounts for population size and shows individual impact.",
+      insight: "Per-capita emissions reveal individual climate impact:",
+      bullets: [
+        "Measures tons of CO₂ per person, not just total",
+        "Accounts for population size",
+        "Shows who pollutes most per individual"
+      ],
       type: "intro" as const,
       config: {
         year: 2020,
@@ -207,10 +216,13 @@
     }
   }
 
-  // Snap to latest year after data loads
+  // Ensure selectedYear is within valid range
   $effect(() => {
-    if (years.length > 0 && selectedYear === 1960) {
-      selectedYear = years[years.length - 1];
+    if (years.length > 0) {
+      // If current year is outside valid range, snap to 2020 or latest
+      if (selectedYear < years[0] || selectedYear > years[years.length - 1]) {
+        selectedYear = years.includes(2020) ? 2020 : years[years.length - 1];
+      }
     }
   });
 
@@ -357,12 +369,19 @@
         {#if comparisonCountries.length > 0}
           <div class="comparison-controls">
             <p><strong>Currently comparing:</strong> {comparisonCountries.length} countries</p>
-            <button on:click={clearComparison}>Clear Selection</button>
+            <button onclick={clearComparison}>Clear Selection</button>
+          </div>
+          <ComparisonChart
+            {emissionsData}
+            selectedCountries={comparisonCountries}
+            width={550}
+            height={350}
+          />
+        {:else}
+          <div class="instructions">
+            <p>💡 <strong>Tip:</strong> Click multiple countries on the globe to add them to comparison (max 5)</p>
           </div>
         {/if}
-        <div class="instructions">
-          <p>💡 <strong>Tip:</strong> Click multiple countries on the globe to add them to comparison (max 5)</p>
-        </div>
       </section>
 
     </div>
