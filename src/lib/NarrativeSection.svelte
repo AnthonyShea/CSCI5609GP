@@ -62,10 +62,10 @@
   data-story-id={story.id}
 >
   <div class="narrative-content">
-    <div class="question-mark" class:visible={isActive}>?</div>
+    <div class="question-mark" class:visible={isActive}></div>
     <h3 class="question">{story.question}</h3>
     <div class="insight" class:visible={isActive}>
-      <div class="insight-icon">💡</div>
+      <div class="insight-icon"></div>
       {#if story.bullets && story.bullets.length > 0}
         <p class="insight-intro">{story.insight}</p>
         <ul class="insight-bullets">
@@ -90,13 +90,17 @@
     min-height: 300px;
     padding: 2.5rem 2rem;
     margin: 1.5rem 0;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 16px;
-    border-left: 4px solid #dee2e6;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    border-radius: 12px;
+    border-left: 4px solid #404040;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0.7;
+    opacity: 0.6;
     position: relative;
     overflow: hidden;
+    box-shadow: 
+      0 4px 20px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
   .narrative-section::before {
@@ -106,18 +110,32 @@
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(90deg, #666666 0%, #888888 100%);
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.5s ease;
   }
 
+  .narrative-section::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 30% 20%, rgba(100, 100, 100, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
   .narrative-section.active {
     opacity: 1;
-    border-left-color: #667eea;
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-left-color: #888888;
+    background: linear-gradient(135deg, #333333 0%, #222222 100%);
     transform: translateX(8px);
-    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
   .narrative-section.active::before {
@@ -125,14 +143,16 @@
   }
 
   .narrative-section.intro {
-    background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%);
-    border-left-color: #00897b;
+    background: linear-gradient(135deg, #2d3a3a 0%, #1a2525 100%);
+    border-left-color: #556666;
   }
 
   .narrative-section.intro.active {
-    background: linear-gradient(135deg, #ffffff 0%, #e0f2f1 100%);
-    border-left-color: #00897b;
-    box-shadow: 0 8px 24px rgba(0, 137, 123, 0.15);
+    background: linear-gradient(135deg, #334444 0%, #223333 100%);
+    border-left-color: #668888;
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(136, 136, 136, 0.1);
   }
 
   .narrative-content {
@@ -145,38 +165,41 @@
     top: -10px;
     right: 10px;
     font-size: 3rem;
-    color: #dee2e6;
+    color: #404040;
     transition: all 0.5s ease;
-    opacity: 0.3;
+    opacity: 0.4;
   }
 
   .question-mark.visible {
     opacity: 0.8;
-    color: #667eea;
+    color: #888888;
     transform: rotate(15deg) scale(1.2);
   }
 
   .question {
     font-size: 1.6rem;
     margin: 0 0 1.5rem 0;
-    font-weight: 700;
-    color: #2c3e50;
+    font-weight: 600;
+    color: #e0e0e0;
     line-height: 1.4;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
 
   .narrative-section.active .question {
-    color: #667eea;
+    color: #ffffff;
   }
 
   .insight {
-    background: rgba(102, 126, 234, 0.05);
+    background: rgba(60, 60, 60, 0.6);
     padding: 1.5rem;
-    border-radius: 12px;
-    border-left: 3px solid #667eea;
+    border-radius: 10px;
+    border-left: 3px solid #666666;
     margin-top: 1rem;
     opacity: 0;
     transform: translateY(10px);
     transition: all 0.5s ease 0.2s;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .insight.visible {
@@ -193,9 +216,11 @@
   @keyframes pulse {
     0%, 100% {
       transform: scale(1);
+      opacity: 0.8;
     }
     50% {
       transform: scale(1.1);
+      opacity: 1;
     }
   }
 
@@ -203,12 +228,13 @@
     font-size: 1.05rem;
     line-height: 1.7;
     margin: 0;
-    color: #495057;
+    color: #cccccc;
   }
 
   .insight-intro {
     margin-bottom: 0.75rem !important;
-    font-weight: 600;
+    font-weight: 500;
+    color: #e0e0e0 !important;
   }
 
   .insight-bullets {
@@ -221,25 +247,28 @@
     padding: 0.5rem 0 0.5rem 1.5rem;
     position: relative;
     line-height: 1.6;
+    color: #bbbbbb;
   }
 
   .insight-bullets li::before {
     content: "▸";
     position: absolute;
     left: 0;
-    color: #667eea;
+    color: #888888;
     font-weight: bold;
   }
 
   .focus-indicator {
     margin-top: 1rem;
     padding: 0.75rem 1rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #555555 0%, #777777 100%);
     border-radius: 8px;
-    color: white;
-    font-weight: 600;
+    color: #f0f0f0;
+    font-weight: 500;
     font-size: 0.9rem;
     display: inline-block;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 
   .focus-indicator span {
@@ -249,7 +278,8 @@
   }
 
   .focus-indicator span::before {
-    content: '🎯';
-    font-size: 1.2rem;
+    content: '🔍';
+    font-size: 1rem;
+    filter: grayscale(0.3);
   }
 </style>

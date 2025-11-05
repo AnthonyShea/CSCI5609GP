@@ -28,15 +28,11 @@
     // Clear previous chart
     d3.select(svg).selectAll("*").remove();
 
-    // If no countries selected, use top 5 countries by latest year emissions
+    // If no countries selected, show empty chart with message
     let countriesToShow = selectedCountries;
     if (!countriesToShow || countriesToShow.length === 0) {
-      const latestYear = d3.max(emissionsData, d => d.year) || 2020;
-      countriesToShow = emissionsData
-        .filter(d => d.year === latestYear && d.value > 0)
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5)
-        .map(d => d.code);
+      showEmptyState();
+      return;
     }
 
     // Filter data for selected countries
@@ -45,6 +41,7 @@
     );
 
     if (filteredData.length === 0) {
+      showEmptyState();
       return;
     }
 
@@ -222,7 +219,32 @@
       .text("Multi-Country Comparison - CO₂ Emissions");
   }
 
-  // Redraw chart when data changes
+  function showEmptyState() {
+    const g = d3.select(svg)
+      .attr("width", width)
+      .attr("height", height)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Add message
+    g.append("text")
+      .attr("x", innerWidth / 2)
+      .attr("y", innerHeight / 2)
+      .attr("text-anchor", "middle")
+      .style("font-size", "16px")
+      .style("fill", "#666")
+      .text("No countries selected");
+
+    g.append("text")
+      .attr("x", innerWidth / 2)
+      .attr("y", innerHeight / 2 + 25)
+      .attr("text-anchor", "middle")
+      .style("font-size", "12px")
+      .style("fill", "#999")
+      .text("Click on countries in the globe to compare");
+  }
+
+  // Redraw chart when data or selected countries change
   $effect(() => {
     drawChart();
   });
