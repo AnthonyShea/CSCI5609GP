@@ -50,7 +50,13 @@
       id: "story-1",
       title: "Top Polluters Today",
       question: "Who are the biggest per-capita polluters in 2020?",
-      insight: "Oil-rich nations dominate the top spots. Qatar, Kuwait, and the UAE lead with emissions over 30 tons per person - more than 10x the global average. These nations' economies are heavily dependent on fossil fuel extraction and consumption.",
+      insight: "Oil-rich nations dominate:",
+      bullets: [
+        "Qatar: 37 tons/person (highest in world)",
+        "Kuwait & UAE: 30+ tons/person",
+        "10x higher than global average",
+        "Economies heavily dependent on fossil fuels"
+      ],
       type: "data-story" as const,
       config: {
         year: 2020,
@@ -366,13 +372,19 @@
       <div class="globe-sticky">
         <h2>Global CO₂ Emissions ({selectedYear})</h2>
 
-        <Globe
-          {emissionsData}
-          {selectedYear}
-          width={500}
-          height={400}
-          on:countryclick={handleCountryClick}
-        />
+        {#if emissionsData.length > 0}
+          <Globe
+            {emissionsData}
+            {selectedYear}
+            width={500}
+            height={400}
+            on:countryclick={handleCountryClick}
+          />
+        {:else}
+          <div class="loading-placeholder">
+            <p>Loading globe visualization...</p>
+          </div>
+        {/if}
 
         <!-- Year Slider -->
         {#if years.length > 0}

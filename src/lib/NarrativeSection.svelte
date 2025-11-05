@@ -11,6 +11,7 @@
       title: string;
       question: string;
       insight: string;
+      bullets?: string[];
       type: 'intro' | 'data-story';
       config?: {
         year?: number;
@@ -65,7 +66,16 @@
     <h3 class="question">{story.question}</h3>
     <div class="insight" class:visible={isActive}>
       <div class="insight-icon">💡</div>
-      <p>{story.insight}</p>
+      {#if story.bullets && story.bullets.length > 0}
+        <p class="insight-intro">{story.insight}</p>
+        <ul class="insight-bullets">
+          {#each story.bullets as bullet}
+            <li>{bullet}</li>
+          {/each}
+        </ul>
+      {:else}
+        <p>{story.insight}</p>
+      {/if}
     </div>
     {#if story.config?.countries && story.config.countries.length > 0}
       <div class="focus-indicator">
@@ -194,6 +204,31 @@
     line-height: 1.7;
     margin: 0;
     color: #495057;
+  }
+
+  .insight-intro {
+    margin-bottom: 0.75rem !important;
+    font-weight: 600;
+  }
+
+  .insight-bullets {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0 0;
+  }
+
+  .insight-bullets li {
+    padding: 0.5rem 0 0.5rem 1.5rem;
+    position: relative;
+    line-height: 1.6;
+  }
+
+  .insight-bullets li::before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: #667eea;
+    font-weight: bold;
   }
 
   .focus-indicator {
