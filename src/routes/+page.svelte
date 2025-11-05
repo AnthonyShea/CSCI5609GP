@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as d3 from "d3";
-  import { Globe, Line } from "$lib";
+  import { Globe, Line, Bar } from "$lib";
+  import type { TStateEmissions } from "../co2types_states";
 
   // Reactive data store
   let emissionsData: { entity: string; code: string; year: number; value: number }[] = $state([]);
@@ -21,6 +22,9 @@
 
   // Store data grouped by country code for efficient lookup
   let countryDataMap: Map<string, {year: number, value: number}[]> = $state(new Map());
+
+  // US state data
+  let TESTSTATEDATA: TStateEmissions[] = $state([])
 
   // Load CSV data
   async function loadCsv() {
@@ -45,6 +49,23 @@
         }
       });
       countryDataMap = tempMap;
+
+      // Build state data map
+      const csvUrlStates = "./co2_state_total.csv";
+      //const stateData = [];
+      await d3.csv(csvUrlStates).then((d) => {
+        const years = d.columns.filter(col => !isNaN(parseInt(col)));
+
+        d.forEach((row) => {
+          years.forEach((year) => {
+            TESTSTATEDATA.push({
+              state: row.State,
+              year: new Date(year),
+              co2_total: Number(row[year])
+            });
+          });
+        });
+      });
 
       console.log("Loaded Emissions Data:", emissionsData.length, "rows");
     } catch (error) {
@@ -89,6 +110,22 @@
   <div class="layout">
     <!-- Left side: Line graph for selected country -->
     <div class="left-panel">
+      <div>
+        {#if selectedCountryName == "United States of America"}
+          <h2>
+            United States of America CO2 Emissions by State
+          </h2>
+          <Bar
+            states={TESTSTATEDATA}
+          />
+          <!---
+          <Bar
+            states={TESTSTATEDATA}
+          />
+          -->
+        {/if}
+      </div>
+      <div>
       <h2>
         {#if selectedCountryName}
           {selectedCountryName} - CO₂ Emissions Timeline
@@ -96,23 +133,24 @@
           Country Emissions Timeline
         {/if}
       </h2>
-      <Line 
-        countryData={selectedCountryData}
-        countryName={selectedCountryName}
-        width={400}
-        height={300}
-      />
-      {#if selectedCountryName}
-        <div class="country-info">
-          <p><strong>Country:</strong> {selectedCountryName}</p>
-          <p><strong>Data Points:</strong> {selectedCountryData?.length || 0} years</p>
-          <p><strong>Current Selection:</strong> {selectedYear}</p>
-        </div>
-      {:else}
-        <div class="instructions">
-          <p>Click on any country in the globe to view its complete CO₂ emissions timeline.</p>
-        </div>
-      {/if}
+        <Line 
+          countryData={selectedCountryData}
+          countryName={selectedCountryName}
+          width={400}
+          height={300}
+        />
+        {#if selectedCountryName}
+          <div class="country-info">
+            <p><strong>Country:</strong> {selectedCountryName}</p>
+            <p><strong>Data Points:</strong> {selectedCountryData?.length || 0} years</p>
+            <p><strong>Current Selection:</strong> {selectedYear}</p>
+          </div>
+        {:else}
+          <div class="instructions">
+            <p>Click on any country in the globe to view its complete CO₂ emissions timeline.</p>
+          </div>
+        {/if}
+      </div>
     </div>
 
     <!-- Right side: Globe -->

@@ -9,7 +9,7 @@
       emissionsData = [], 
       selectedYear = 1960, 
       width = 500, 
-      height = 400 
+      height = 400
     } = $props<{
       emissionsData: { entity: string; code: string; year: number; value: number }[];
       selectedYear: number;
@@ -91,7 +91,7 @@
         x: Math.random() * width,
         y: Math.random() * height,
         size: Math.random() * 1.5 + 0.5,
-        baseOpacity: Math.random() * 0.5 + 0.5, // 0.5–1.0
+        opacity: Math.random() * 0.5 + 0.5, // 0.5–1.0
         twinkleSpeed: Math.random() * 0.8 + 0.2, // smaller = slower twinkle
         phase: Math.random() * Math.PI * 2, // random start phase
         });
@@ -338,7 +338,7 @@
         startAutoRotation();
         
         // Start star animation
-        animateStars();
+        //animateStars();
       }
   
       return () => {
@@ -369,7 +369,7 @@
           cy={star.y}
           r={star.size}
           fill="white"
-          style="--base-opacity: {star.baseOpacity}; opacity: {star.baseOpacity}; animation-duration: {star.duration}s; animation-delay: {Math.random() * star.duration}s;"
+          style="--base-opacity: {star.opacity}; opacity: {star.opacity}; animation-duration: {star.twinkleSpeed * 8}s; animation-delay: {Math.random() * star.twinkleSpeed}s;"
         />
       {/each}
     </svg>

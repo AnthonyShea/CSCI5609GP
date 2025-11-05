@@ -27,16 +27,15 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/TEST";
+		RouteId(): "/";
 		RouteParams(): {
 			
 		};
 		LayoutParams(): {
-			"/": Record<string, never>;
-			"/TEST": Record<string, never>
+			"/": Record<string, never>
 		};
-		Pathname(): "/" | "/TEST" | "/TEST/";
+		Pathname(): "/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/co-emissions-per-capita.csv" | "/co2_state_coal.csv" | "/co2_state_natural_gas.csv" | "/co2_state_petroleum.csv" | "/co2_state_total.csv" | "/FullSizeRender.jpg" | "/owid-co2-data.csv" | "/robots.txt" | "/summer_movies.csv" | string & {};
+		Asset(): "/co-emissions-per-capita.csv" | "/co2_state_coal.csv" | "/co2_state_natural_gas.csv" | "/co2_state_petroleum.csv" | "/co2_state_total.csv" | "/owid-co2-data.csv" | string & {};
 	}
 }

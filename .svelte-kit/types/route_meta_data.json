@@ -2,8 +2,5 @@
 	"/": [
 		"src/routes/+layout.js",
 		"src/routes/+layout.js"
-	],
-	"/TEST": [
-		"src/routes/+layout.js"
 	]
 }
