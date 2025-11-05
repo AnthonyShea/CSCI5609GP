@@ -476,7 +476,7 @@
         {#if isTimeJumping && timeJumpTargetYear}
           <div class="time-jump-indicator">
             <div class="time-jump-icon">🌍</div>
-            <div class="time-jump-text">Time traveling to {timeJumpTargetYear}...</div>
+            <div class="time-jump-text">Traveling to {timeJumpTargetYear}...</div>
           </div>
         {/if}
 
