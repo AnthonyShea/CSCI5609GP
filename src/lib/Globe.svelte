@@ -5,16 +5,18 @@
     import { createEventDispatcher } from 'svelte';
   
     // Define props using $props() instead of export let
-    let { 
-      emissionsData = [], 
-      selectedYear = 1960, 
-      width = 500, 
-      height = 400 
+    let {
+      emissionsData = [],
+      selectedYear = 1960,
+      width = 500,
+      height = 400,
+      triggerTimeJump = 0
     } = $props<{
       emissionsData: { entity: string; code: string; year: number; value: number }[];
       selectedYear: number;
       width?: number;
       height?: number;
+      triggerTimeJump?: number;
     }>();
   
     const dispatch = createEventDispatcher();
@@ -34,6 +36,10 @@
     let lastInteractionTime = $state(0);
     const AUTO_ROTATION_RESUME_DELAY = 30000; // 30 seconds
     let animationFrameId: number | null = $state(null);
+
+    // Time jump animation
+    let rotationSpeedMultiplier = $state(1);
+    let isTimeJumping = $state(false);
   
     // Starfield state
     let stars: {x: number, y: number, size: number, opacity: number, twinkleSpeed: number}[] = $state([]);
@@ -275,29 +281,66 @@
     // Auto-rotation when not interacting
     function startAutoRotation() {
       let lastTime: number | null = null;
-      
+
       function rotate(timestamp: number) {
         if (!lastTime) lastTime = timestamp;
         const delta = timestamp - lastTime;
-        
+
         if (!isDragging && autoRotationEnabled) {
-          // Slow auto-rotation when not interacting
-          rotation = [rotation[0] + delta * 0.02, rotation[1]];
+          // Apply speed multiplier for time jump animation
+          const baseSpeed = 0.02;
+          const currentSpeed = baseSpeed * rotationSpeedMultiplier;
+          rotation = [rotation[0] + delta * currentSpeed, rotation[1]];
           updateProjection();
         }
-        
+
         lastTime = timestamp;
         animationFrameId = requestAnimationFrame(rotate);
       }
-      
+
       animationFrameId = requestAnimationFrame(rotate);
+    }
+
+    // Trigger time jump animation
+    function triggerTimeJumpAnimation() {
+      isTimeJumping = true;
+      rotationSpeedMultiplier = 8; // Start fast
+
+      // Gradually slow down over 1.5 seconds
+      const slowdownDuration = 1500;
+      const startTime = Date.now();
+
+      function slowDown() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / slowdownDuration, 1);
+
+        // Ease out function: fast to slow
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        rotationSpeedMultiplier = 8 - (7 * easeOut); // 8 -> 1
+
+        if (progress < 1) {
+          requestAnimationFrame(slowDown);
+        } else {
+          rotationSpeedMultiplier = 1;
+          isTimeJumping = false;
+        }
+      }
+
+      slowDown();
     }
   
     // React to prop changes
     $effect(() => {
       buildDataStructures();
     });
-  
+
+    // Trigger time jump animation when prop changes
+    $effect(() => {
+      if (triggerTimeJump > 0) {
+        triggerTimeJumpAnimation();
+      }
+    });
+
     $effect(() => {
       if (world && nameToCode.size > 0 && gr) {
         updateViz();

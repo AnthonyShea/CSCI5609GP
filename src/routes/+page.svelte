@@ -34,6 +34,11 @@
   // Active narrative story
   let activeStoryId: string | null = $state(null);
 
+  // Time jump animation trigger
+  let timeJumpTrigger = $state(0);
+  let isTimeJumping = $state(false);
+  let timeJumpTargetYear = $state<number | null>(null);
+
   // Store data grouped by country code for efficient lookup
   let countryDataMap: Map<string, {year: number, value: number}[]> = $state(new Map());
 
@@ -205,8 +210,23 @@
     activeStoryId = storyId;
 
     if (config) {
-      // Update year if specified
-      if (config.year !== undefined) {
+      // Check if year is changing significantly (trigger animation)
+      if (config.year !== undefined && config.year !== selectedYear) {
+        const yearDifference = Math.abs(config.year - selectedYear);
+
+        // Only trigger animation for significant jumps (> 5 years)
+        if (yearDifference > 5) {
+          isTimeJumping = true;
+          timeJumpTargetYear = config.year;
+          timeJumpTrigger++; // Increment to trigger animation
+
+          // Hide indicator after animation completes (1.8s)
+          setTimeout(() => {
+            isTimeJumping = false;
+            timeJumpTargetYear = null;
+          }, 1800);
+        }
+
         selectedYear = config.year;
       }
 
@@ -214,11 +234,6 @@
       if (config.countries && config.countries.length > 0) {
         comparisonCountries = config.countries;
       }
-
-      // You could add more logic here, like:
-      // - Auto-clicking a specific country on the globe
-      // - Highlighting specific bars in charts
-      // - Animating transitions between states
     }
   }
 
@@ -403,11 +418,20 @@
             {selectedYear}
             width={500}
             height={400}
+            triggerTimeJump={timeJumpTrigger}
             on:countryclick={handleCountryClick}
           />
         {:else}
           <div class="loading-placeholder">
             <p>Loading globe visualization...</p>
+          </div>
+        {/if}
+
+        <!-- Time Jump Indicator -->
+        {#if isTimeJumping && timeJumpTargetYear}
+          <div class="time-jump-indicator">
+            <div class="time-jump-icon">🌍</div>
+            <div class="time-jump-text">Time traveling to {timeJumpTargetYear}...</div>
           </div>
         {/if}
 
@@ -643,6 +667,61 @@
     color: #2c3e50;
   }
 
+
+  /* Time Jump Indicator */
+  .time-jump-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(102, 126, 234, 0.95);
+    color: white;
+    padding: 1.5rem 2rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+    animation: fadeInOut 1.8s ease-in-out;
+    z-index: 1000;
+    text-align: center;
+  }
+
+  .time-jump-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    animation: spin 1s linear infinite;
+  }
+
+  .time-jump-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  @keyframes fadeInOut {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.8);
+    }
+    20% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    80% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.8);
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   /* Responsive design */
   @media (max-width: 1200px) {
