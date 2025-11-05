@@ -1,5 +1,9 @@
 import Line from './Line.svelte';
-import Globe from './Globe.svelte'
-import Bar from './Bar.svelte'
+import Globe from './Globe.svelte';
+import BarChart from './BarChart.svelte';
+import PieChart from './PieChart.svelte';
+import AreaChart from './AreaChart.svelte';
+import ComparisonChart from './ComparisonChart.svelte';
+import NarrativeSection from './NarrativeSection.svelte';
 
-export { Line, Globe, Bar };
+export { Bar, RankedLine, GenreHeatmap, Scatter, Line, Globe, BarChart, PieChart, AreaChart, ComparisonChart, NarrativeSection };
