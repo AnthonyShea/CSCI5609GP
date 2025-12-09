@@ -7,6 +7,8 @@
   import AreaChart from "$lib/AreaChart.svelte";
   import ComparisonChart from "$lib/ComparisonChart.svelte";
   import NarrativeSection from "$lib/NarrativeSection.svelte";
+  import BubbleChart from "$lib/BubbleChart.svelte";
+  import CarbonBudget from "$lib/CarbonBudget.svelte";
 
   // Reactive data store
   let emissionsData: { entity: string; code: string; year: number; value: number }[] = $state([]);
@@ -360,17 +362,31 @@
             selectedCountries={comparisonCountries}
             width={550}
             height={350}
+            autoPlay={activeStoryId === dataStories[2].id}
+            showPlayControls={true}
           />
         </div>
       </section>
 
-      <!-- Story 3: The Great Reversal -->
-       <section class="chart-section">
+      <!-- Story 3: Cumulative Emissions - NEW BUBBLE CHART -->
+      <section class="chart-section bubble-section">
         <NarrativeSection
           story={dataStories[3]}
           isActive={activeStoryId === dataStories[3].id}
           onActivate={handleNarrativeActivation}
         />
+        <h2>Historical Responsibility: Cumulative Emissions (1850-2020)</h2>
+        <p class="section-description">Bubble size represents total cumulative per-capita emissions over 170 years. Larger bubbles indicate greater historical contribution to atmospheric CO₂.</p>
+        <div class="chart-wrapper bubble-wrapper">
+          <BubbleChart
+            {emissionsData}
+            startYear={1850}
+            endYear={2020}
+            topN={15}
+            width={650}
+            height={550}
+          />
+        </div>
       </section>
 
       <!-- Story 4: Cumulative Picture -->
@@ -455,6 +471,9 @@
     <!-- Right side: Fixed Globe -->
     <div class="right-panel">
       <div class="globe-sticky">
+        <!-- Carbon Budget Component -->
+        <CarbonBudget currentYear={selectedYear} />
+
         <h2>Global CO₂ Emissions ({selectedYear})</h2>
 
         {#if emissionsData.length > 0}
@@ -678,9 +697,24 @@
   .chart-wrapper {
     margin-top: 1rem;
     overflow: visible;
-    height: 400px;
+    height: auto;
+    min-height: 400px;
     display: flex;
     justify-content: center;
+  }
+
+  .bubble-wrapper {
+    height: auto;
+    min-height: 620px;
+    margin-bottom: 2rem;
+    overflow: visible;
+  }
+
+  .bubble-section {
+    min-height: fit-content;
+    height: auto;
+    padding-bottom: 4rem;
+    margin-bottom: 3rem;
   }
 
   .chart-section:hover {
