@@ -9,5 +9,7 @@ import PieChart from './PieChart.svelte';
 import AreaChart from './AreaChart.svelte';
 import ComparisonChart from './ComparisonChart.svelte';
 import NarrativeSection from './NarrativeSection.svelte';
+import BubbleChart from './BubbleChart.svelte';
+import CarbonBudget from './CarbonBudget.svelte';
 
-export { Bar, RankedLine, GenreHeatmap, Scatter, Line, Globe, BarChart, PieChart, AreaChart, ComparisonChart, NarrativeSection };
+export { Bar, RankedLine, GenreHeatmap, Scatter, Line, Globe, BarChart, PieChart, AreaChart, ComparisonChart, NarrativeSection, BubbleChart, CarbonBudget };
