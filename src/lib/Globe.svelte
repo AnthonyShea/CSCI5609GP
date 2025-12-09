@@ -9,8 +9,6 @@
   let gr: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
   let world: any;
 
-  // --- 1. STATE MANAGEMENT (The "Source of Truth") ---
-  // We keep the rotation angles in a variable, not hidden inside the projection
   let rotation = [0, 0]; 
   let isDragging = false;
   let startX = 0;
@@ -18,10 +16,8 @@
   let startRotation = [0, 0];
   let lastInteractionTime = 0;
   
-  // Stars for background
   let stars: { x: number; y: number; size: number; baseOpacity: number }[] = [];
 
-  // Projection setup
   let projection = d3.geoOrthographic()
     .scale(Math.min(width, height) / 2 - 20)
     .translate([width / 2, height / 2])
@@ -50,7 +46,6 @@
   function createGlobe() {
     if (!svg || !world) return;
     
-    // Clean up any existing groups (for resize)
     d3.select(svg).selectAll("g").remove();
     
     gr = d3.select(svg).append("g");
@@ -116,7 +111,6 @@
     rotation[0] = startRotation[0] + dx * 0.5;
     rotation[1] = startRotation[1] - dy * 0.5;
     
-    // Clamp latitude to prevent flipping
     rotation[1] = Math.max(-90, Math.min(90, rotation[1]));
 
     lastInteractionTime = Date.now(); 

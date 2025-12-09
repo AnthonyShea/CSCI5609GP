@@ -4,6 +4,7 @@
   import * as topojson from "topojson-client";
   import { idToAlpha3 } from "./idToAlpha3";
   import { base } from '$app/paths';
+  import Narration from '$lib/Narration.svelte';  // ← Changed this line
 
   let svg: SVGSVGElement;
   let width = 0;
@@ -277,24 +278,19 @@
       .scaleExtent([0.5, 8])
       .on("zoom", event => {
         projection.scale((Math.min(width, height) / 2 - 20) * event.transform.k);
-        // We don't need to call updateGlobe() here because the animation loop handles it
       });
 
     d3.select(svg).call(drag).call(zoom);
 
-    // --- NEW ANIMATION LOOP ---
     function animate() {
       const now = Date.now();
 
-      // 1. Logic: Auto-rotate if not dragging AND 10s have passed
       if (!isDragging && (now - lastInteractionTime > 10000)) {
         rotation[0] += 0.2; // Speed of rotation
       }
 
-      // 2. Logic: Star drift (background movement)
       stars.forEach(s => { s.x = (s.x + 0.02) % width; });
 
-      // 3. Render: Apply rotation and draw
       projection.rotate(rotation);
       updateGlobe();
       updateStars();
@@ -302,7 +298,6 @@
       requestAnimationFrame(animate);
     }
     
-    // Start the loop
     animate();
 
     window.addEventListener("resize", () => {
@@ -311,7 +306,6 @@
       projection.translate([width / 2, height / 2])
         .scale(Math.min(width, height) / 2 - 20);
       generateStarfield();
-      // No need to call updateGlobe(), the loop will catch it next frame
     });
   });
 
@@ -345,6 +339,7 @@
   <button on:click={clearMultiSelection} style="position:absolute; left:20px; top:430px; z-index:5;">Clear Multi Selection</button>
   <svg id="multi-country-chart" class="multi-country-chart" style="position:absolute; left:20px; top:460px; width:300px; height:200px; z-index:4;"></svg>
   <svg id="top10-bar-chart" class="bar-chart"></svg>
+  <Narration />
 </div>
 
 <style>
