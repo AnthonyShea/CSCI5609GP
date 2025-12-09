@@ -11,13 +11,14 @@ const config = {
       fallback: null, // No fallback page (not an SPA)
       precompress: false // Optional: Compress output files
     }),
+    
     prerender: {
       entries: ['*'] // Prerender all routes
     },
-    // Optional: If deploying to GitHub Pages with a custom base path
-    // Replace 'my-vis-5609' with your repository name
+
+    // This is the critical fix for GitHub Pages
     paths: {
-      base: process.env.NODE_ENV === 'production' ? '/my-vis-5609' : ''
+      base: process.env.NODE_ENV === 'production' ? '/CSCI5609GP' : ''
     }
   }
 };

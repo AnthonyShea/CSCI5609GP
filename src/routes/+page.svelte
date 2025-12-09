@@ -3,6 +3,7 @@
   import * as d3 from "d3";
   import * as topojson from "topojson-client";
   import { idToAlpha3 } from "./idToAlpha3";
+  import { base } from '$app/paths';
 
   let svg: SVGSVGElement;
   let width = 0;
@@ -49,8 +50,8 @@
   }
 
   async function loadCSV() {
-    const csvData = await d3.csv("/co2.csv");
-    csvData.forEach(d => {
+    const csvData = await d3.csv(`${base}/co2.csv`);
+      csvData.forEach(d => {
       const code = d.Code;
       const year = +d.Year;
       const value = +d["Annual CO₂ emissions (per capita)"];
