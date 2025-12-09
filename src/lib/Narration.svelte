@@ -1,4 +1,6 @@
 <script>
+    import { base } from '$app/paths';
+
     // You can add logic here if the sidebar needs to be interactive
   </script>
   
@@ -23,7 +25,7 @@
         <li><strong>Timeframe:</strong> c. 1750 – 1900.</li>
         <li><strong>Driver:</strong> Mass combustion of coal and the steam engine.</li>
         <li><strong>Visual:</strong> Emergence of distinct, concentrated emission hotspots in Western Europe and the US.</li>
-        <img src="/industrial_rev.avif" alt="Industrial Revolution era factory" class="narration-image" />
+        <img src="{base}/industrial_rev.avif" alt="Industrial Revolution era factory" class="narration-image" />
     </ul>
 
     <hr>
