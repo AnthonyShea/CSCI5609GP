@@ -29,6 +29,9 @@
 
   // Multi-country chart
   let multiCountries: { code: string; name: string }[] = [];
+  let rotation: [number, number, number] = [0, 0, 0]; 
+  let isDragging = false;
+  let lastInteractionTime = 0;
 
   function generateStarfield() {
     const starCount = 400;
@@ -124,6 +127,7 @@
   function updateStars() {
     const rotate = projection.rotate()[0];
     d3.select(".starfield").selectAll("circle")
+      .data(stars) 
       .attr("cx", (d: any) => (d.x + rotate * 0.2) % width)
       .attr("cy", (d: any) => d.y);
   }
@@ -243,6 +247,9 @@
       .translate([width / 2, height / 2])
       .clipAngle(90);
 
+    // Initialize rotation state from the projection
+    rotation = projection.rotate() as [number, number, number];
+
     pathGen = d3.geoPath().projection(projection);
     gr = d3.select(svg).append("g");
 
@@ -250,28 +257,53 @@
     drawCountries();
 
     const drag = d3.drag<SVGSVGElement, unknown>()
-      .on("drag", event => {
-        const rotate = projection.rotate();
-        projection.rotate([rotate[0] + event.dx * 0.5, rotate[1] - event.dy * 0.5]);
-        updateGlobe();
-        updateStars();
+      .on("start", () => {
+        isDragging = true;
+        lastInteractionTime = Date.now();
+      })
+      .on("drag", (event) => {
+        rotation[0] += event.dx * 0.5;
+        rotation[1] -= event.dy * 0.5;
+        rotation[1] = Math.max(-90, Math.min(90, rotation[1]));
+        
+        lastInteractionTime = Date.now();
+      })
+      .on("end", () => {
+        isDragging = false;
+        lastInteractionTime = Date.now();
       });
 
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.5, 8])
       .on("zoom", event => {
         projection.scale((Math.min(width, height) / 2 - 20) * event.transform.k);
-        updateGlobe();
+        // We don't need to call updateGlobe() here because the animation loop handles it
       });
 
     d3.select(svg).call(drag).call(zoom);
 
-    function animateStars() {
+    // --- NEW ANIMATION LOOP ---
+    function animate() {
+      const now = Date.now();
+
+      // 1. Logic: Auto-rotate if not dragging AND 10s have passed
+      if (!isDragging && (now - lastInteractionTime > 10000)) {
+        rotation[0] += 0.2; // Speed of rotation
+      }
+
+      // 2. Logic: Star drift (background movement)
       stars.forEach(s => { s.x = (s.x + 0.02) % width; });
+
+      // 3. Render: Apply rotation and draw
+      projection.rotate(rotation);
+      updateGlobe();
       updateStars();
-      requestAnimationFrame(animateStars);
+
+      requestAnimationFrame(animate);
     }
-    animateStars();
+    
+    // Start the loop
+    animate();
 
     window.addEventListener("resize", () => {
       width = window.innerWidth;
@@ -279,7 +311,7 @@
       projection.translate([width / 2, height / 2])
         .scale(Math.min(width, height) / 2 - 20);
       generateStarfield();
-      updateGlobe();
+      // No need to call updateGlobe(), the loop will catch it next frame
     });
   });
 

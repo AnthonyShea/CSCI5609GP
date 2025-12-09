@@ -9,10 +9,19 @@
   let gr: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
   let world: any;
 
+  // --- 1. STATE MANAGEMENT (The "Source of Truth") ---
+  // We keep the rotation angles in a variable, not hidden inside the projection
+  let rotation = [0, 0]; 
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let startRotation = [0, 0];
+  let lastInteractionTime = 0;
+  
   // Stars for background
   let stars: { x: number; y: number; size: number; baseOpacity: number }[] = [];
 
-  // Projection & path
+  // Projection setup
   let projection = d3.geoOrthographic()
     .scale(Math.min(width, height) / 2 - 20)
     .translate([width / 2, height / 2])
@@ -20,7 +29,6 @@
 
   const pathGen = d3.geoPath().projection(projection);
 
-  // Generate starfield
   function generateStarfield() {
     stars = [];
     for (let i = 0; i < 400; i++) {
@@ -33,7 +41,6 @@
     }
   }
 
-  // Load world map
   async function loadWorld() {
     const topoUrl = "https://unpkg.com/world-atlas@2.0.2/countries-110m.json";
     const topoData = await d3.json(topoUrl) as any;
@@ -42,17 +49,20 @@
 
   function createGlobe() {
     if (!svg || !world) return;
+    
+    // Clean up any existing groups (for resize)
+    d3.select(svg).selectAll("g").remove();
+    
     gr = d3.select(svg).append("g");
 
-    // Ocean background (full visible hemisphere)
+    // Ocean
     gr.append("path")
       .datum({ type: "Sphere" })
       .attr("class", "ocean")
       .attr("d", (d: any) => pathGen(d))
-      .attr("fill", "#1e3fbc") // deep blue
+      .attr("fill", "#1e3fbc")
       .attr("stroke", "#0d2b45")
-      .attr("stroke-width", 2)
-      .lower();
+      .attr("stroke-width", 2);
 
     // Countries
     gr.selectAll(".country")
@@ -60,25 +70,62 @@
       .join("path")
       .attr("class", "country")
       .attr("d", (d: any) => pathGen(d))
-      .attr("fill", "#d3d3d3") // light grey land
+      .attr("fill", "#d3d3d3")
       .attr("stroke", "#555555")
       .attr("stroke-width", 0.5);
   }
 
-  // Update globe paths on rotation/zoom
-  function updateGlobe() {
-    if (!gr) return;
-    gr.selectAll("path").attr("d", (d: any) => pathGen(d));
-    updateStars();
+  function animate() {
+    if (!isDragging && (Date.now() - lastInteractionTime > 10000)) {
+      rotation[0] += 0.000001; // Speed
+    }
+
+    projection.rotate(rotation as [number, number, number?]);
+
+    if (gr) {
+      gr.selectAll("path").attr("d", (d: any) => pathGen(d));
+    }
+
+    d3.select(".starfield").selectAll("circle")
+      .data(stars) 
+      .attr("cx", (d) => {
+        const xOffset = rotation[0] * 0.5; 
+        const drift = 0; 
+        let val = (d.x + xOffset + drift) % width;
+        return val < 0 ? val + width : val;
+      });
+
+    requestAnimationFrame(animate);
   }
 
-  // Stars move subtly with rotation
-  function updateStars() {
-    const rotate = projection.rotate()[0];
-    const starfield = d3.select(".starfield");
-    starfield.selectAll("circle")
-      .attr("cx", (d: any) => (d.x + rotate * 0.2) % width)
-      .attr("cy", (d: any) => d.y);
+  function handleMouseDown(e: MouseEvent) {
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startRotation = [...rotation]; 
+    lastInteractionTime = Date.now();
+    if(svg) svg.style.cursor = "grabbing";
+  }
+
+  function handleMouseMove(e: MouseEvent) {
+    if (!isDragging) return;
+    
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    rotation[0] = startRotation[0] + dx * 0.5;
+    rotation[1] = startRotation[1] - dy * 0.5;
+    
+    // Clamp latitude to prevent flipping
+    rotation[1] = Math.max(-90, Math.min(90, rotation[1]));
+
+    lastInteractionTime = Date.now(); 
+  }
+
+  function handleMouseUp() {
+    isDragging = false;
+    lastInteractionTime = Date.now(); // Reset timer on release
+    if(svg) svg.style.cursor = "grab";
   }
 
   onMount(async () => {
@@ -86,49 +133,35 @@
     await loadWorld();
     createGlobe();
 
-    // Drag rotation
-    const drag = d3.drag<SVGSVGElement, unknown>()
-      .on("drag", (event) => {
-        const rotate = projection.rotate();
-        projection.rotate([rotate[0] + event.dx * 0.5, rotate[1] - event.dy * 0.5]);
-        updateGlobe();
-      });
-
-    // Zoom
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.5, 8])
-      .on("zoom", (event) => {
-        projection.scale((Math.min(width, height) / 2 - 20) * event.transform.k);
-        updateGlobe();
-      });
-
     if (svg) {
-      d3.select(svg).call(drag).call(zoom);
+      svg.addEventListener("mousedown", handleMouseDown);
     }
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
 
-    // Animate stars
-    function animateStars() {
-      stars.forEach(s => s.x = (s.x + 0.02) % width);
-      updateStars();
-      requestAnimationFrame(animateStars);
-    }
-    animateStars();
-
-    // Handle resize
+    // Handle Resize
     window.addEventListener("resize", () => {
       width = window.innerWidth;
       height = window.innerHeight;
-      projection.translate([width / 2, height / 2])
-        .scale(Math.min(width, height) / 2 - 20);
-      generateStarfield();
-      updateGlobe();
+      projection
+        .scale(Math.min(width, height) / 2 - 20)
+        .translate([width / 2, height / 2]);
+      createGlobe();
+      //generateStarfield();
     });
+
+    // Start the Loop
+    animate();
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    }
   });
 </script>
 
 <div class="globe-container">
-  <!-- Starfield background -->
-  <svg class="starfield">
+  <svg class="starfield" width={width} height={height}>
     {#each stars as star (star.x + star.y)}
       <circle
         class="star"
@@ -136,12 +169,11 @@
         cy={star.y}
         r={star.size}
         fill="white"
-        style="opacity: {star.baseOpacity}"
+        style="opacity: {star.baseOpacity}; --opacity: {star.baseOpacity};"
       />
     {/each}
   </svg>
 
-  <!-- Globe -->
   <svg bind:this={svg} width={width} height={height} class="globe"></svg>
 </div>
 
@@ -172,6 +204,7 @@
   }
 
   .star {
+    /* Use the CSS variable defined in the inline style */
     animation: twinkle 2s ease-in-out infinite;
   }
 
