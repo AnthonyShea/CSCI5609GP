@@ -32,6 +32,15 @@
         <!-- Top 10 bar chart  needs to function -->
         <svg id="top10-bar-chart" class="bar-chart" style="width:100%; height:200px;"></svg>
     </ul>
+
+    <hr>
+
+    <h3>Total CO₂ Emissions by Country</h3>
+    <p style="font-size:0.85rem; margin:5px 0;">Bubble size shows absolute emissions (not per capita)</p>
+    <ul>
+        <!-- Bubble chart for total emissions -->
+        <svg id="bubble-chart" class="bubble-chart" style="width:100%; height:300px;"></svg>
+    </ul>
 </aside>
   
   <style>

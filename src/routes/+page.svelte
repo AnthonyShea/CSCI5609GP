@@ -18,6 +18,7 @@
   let selectedYear = 1960;
 
   let countryData: Map<string, Map<number, number>> = new Map();
+  let totalEmissionsData: Map<string, Map<number, number>> = new Map(); // iso_code -> year -> total CO2
 
   let colorScale = d3.scaleSequential(d3.interpolateReds).domain([0, 20]);
 
@@ -62,6 +63,19 @@
       const value = +d["Annual CO₂ emissions (per capita)"];
       if (!countryData.has(code)) countryData.set(code, new Map());
       countryData.get(code)?.set(year, value);
+    });
+  }
+
+  async function loadTotalEmissions() {
+    const csvData = await d3.csv(`${base}/co2-total.csv`);
+    csvData.forEach(d => {
+      const code = d.iso_code;
+      const year = +d.year;
+      const value = +d.co2; // Total emissions in million tonnes
+      if (code && !isNaN(year) && !isNaN(value) && value > 0) {
+        if (!totalEmissionsData.has(code)) totalEmissionsData.set(code, new Map());
+        totalEmissionsData.get(code)?.set(year, value);
+      }
     });
   }
 
@@ -314,6 +328,99 @@
       .text(`Top 10 Countries (${selectedYear})`);
   }
 
+  function drawBubbleChart() {
+    if (typeof document === "undefined") return;
+
+    // Get data for the selected year
+    const yearData: { code: string; name: string; value: number }[] = [];
+    let totalGlobal = 0;
+
+    totalEmissionsData.forEach((yearMap, code) => {
+      const value = yearMap.get(selectedYear);
+      if (value !== undefined && value > 0) {
+        const feature = world?.features.find((f: any) => idToAlpha3[f.id] === code);
+        const name = feature?.properties.name || code;
+        yearData.push({ code, name, value });
+        totalGlobal += value;
+      }
+    });
+
+    // Sort and get top 30 countries
+    yearData.sort((a, b) => b.value - a.value);
+    const top30 = yearData.slice(0, 30);
+
+    const chartWidth = 300;
+    const chartHeight = 300;
+
+    const svgChart = d3.select("#bubble-chart");
+    svgChart.selectAll("*").remove();
+
+    svgChart
+      .attr("width", chartWidth)
+      .attr("height", chartHeight);
+
+    // Create hierarchy for pack layout
+    const root = d3.hierarchy({ children: top30 } as any)
+      .sum((d: any) => d.value || 0);
+
+    const pack = d3.pack()
+      .size([chartWidth - 20, chartHeight - 20])
+      .padding(3);
+
+    pack(root);
+
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    const g = svgChart.append("g")
+      .attr("transform", "translate(10,10)");
+
+    // Background
+    svgChart.insert("rect", ":first-child")
+      .attr("width", chartWidth)
+      .attr("height", chartHeight)
+      .attr("fill", "rgba(0,0,0,0.7)");
+
+    const nodes = g.selectAll("g")
+      .data(root.leaves())
+      .join("g")
+      .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+
+    nodes.append("circle")
+      .attr("r", (d: any) => d.r)
+      .attr("fill", (d: any, i: number) => color(i.toString()) as string)
+      .attr("fill-opacity", 0.7)
+      .attr("stroke", "white")
+      .attr("stroke-width", 1.5);
+
+    nodes.append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", "-0.2em")
+      .attr("fill", "white")
+      .attr("font-size", (d: any) => Math.min(d.r / 3, 12))
+      .attr("font-weight", "bold")
+      .text((d: any) => d.data.code);
+
+    nodes.append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", "1em")
+      .attr("fill", "white")
+      .attr("font-size", (d: any) => Math.min(d.r / 4, 10))
+      .text((d: any) => {
+        const pct = ((d.data.value / totalGlobal) * 100).toFixed(1);
+        return `${pct}%`;
+      });
+
+    // Title
+    svgChart.append("text")
+      .attr("x", chartWidth / 2)
+      .attr("y", 15)
+      .attr("text-anchor", "middle")
+      .attr("fill", "white")
+      .attr("font-size", 14)
+      .attr("font-weight", "bold")
+      .text(`Top 30 Emitters (${selectedYear})`);
+  }
+
     function clearMultiSelection() {
       multiCountries = []; // reassign to trigger Svelte reactivity
       d3.select("#multi-country-chart").selectAll("*").remove(); // clear SVG
@@ -327,6 +434,7 @@
     generateStarfield();
     await loadWorld();
     await loadCSV();
+    await loadTotalEmissions();
 
     projection = d3.geoOrthographic()
       .scale(Math.min(width, height) / 2 - 20)
@@ -400,6 +508,7 @@
     if (selectedCountryCode) drawCountryLineChart();
     if (multiCountries.length > 0) drawMultiCountryChart();
     drawTop10BarChart();
+    drawBubbleChart();
   }
 </script>
 
