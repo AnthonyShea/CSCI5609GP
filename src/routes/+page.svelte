@@ -4,7 +4,7 @@
   import * as topojson from "topojson-client";
   import { idToAlpha3 } from "./idToAlpha3";
   import { base } from '$app/paths';
-  import Narration from '$lib/Narration.svelte';  // ← Changed this line
+  import Narration from '$lib/Narration.svelte';
 
   let svg: SVGSVGElement;
   let width = 0;
@@ -317,6 +317,7 @@
   }
 </script>
 
+
 <div class="globe-container">
   <svg class="starfield">
     {#each stars as star (star.x + star.y)}
@@ -339,7 +340,7 @@
   <button on:click={clearMultiSelection} style="position:absolute; left:20px; top:430px; z-index:5;">Clear Multi Selection</button>
   <svg id="multi-country-chart" class="multi-country-chart" style="position:absolute; left:20px; top:460px; width:300px; height:200px; z-index:4;"></svg>
   <svg id="top10-bar-chart" class="bar-chart"></svg>
-  <Narration />
+  <Narration bind:selectedYear={selectedYear} />
 </div>
 
 <style>
