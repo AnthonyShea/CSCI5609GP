@@ -231,6 +231,89 @@
     g.append("text").attr("x", chartWidth / 2).attr("y", -5).attr("text-anchor", "middle").attr("fill", "white").attr("font-size", 14).text("Multi-country Comparison");
   }
 
+  function drawTop10BarChart() {
+    if (typeof document === "undefined") return;
+
+    // Get data for the selected year
+    const yearData: { code: string; name: string; value: number }[] = [];
+    countryData.forEach((yearMap, code) => {
+      const value = yearMap.get(selectedYear);
+      if (value !== undefined && value > 0) {
+        // Find country name from world features
+        const feature = world?.features.find((f: any) => idToAlpha3[f.id] === code);
+        const name = feature?.properties.name || code;
+        yearData.push({ code, name, value });
+      }
+    });
+
+    // Sort and get top 10
+    yearData.sort((a, b) => b.value - a.value);
+    const top10 = yearData.slice(0, 10);
+
+    const margin = { top: 20, right: 20, bottom: 60, left: 50 };
+    const chartWidth = 300 - margin.left - margin.right;
+    const chartHeight = 200 - margin.top - margin.bottom;
+
+    const svgChart = d3.select("#top10-bar-chart");
+    svgChart.selectAll("*").remove();
+
+    const g = svgChart
+      .attr("width", chartWidth + margin.left + margin.right)
+      .attr("height", chartHeight + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    g.append("rect")
+      .attr("x", -margin.left)
+      .attr("y", -margin.top)
+      .attr("width", chartWidth + margin.left + margin.right)
+      .attr("height", chartHeight + margin.top + margin.bottom)
+      .attr("fill", "rgba(0,0,0,0.7)")
+      .lower();
+
+    const x = d3.scaleBand()
+      .domain(top10.map(d => d.code))
+      .range([0, chartWidth])
+      .padding(0.1);
+
+    const y = d3.scaleLinear()
+      .domain([0, d3.max(top10, d => d.value) ?? 1])
+      .range([chartHeight, 0]);
+
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    g.selectAll(".bar")
+      .data(top10)
+      .join("rect")
+      .attr("class", "bar")
+      .attr("x", d => x(d.code) ?? 0)
+      .attr("y", d => y(d.value))
+      .attr("width", x.bandwidth())
+      .attr("height", d => chartHeight - y(d.value))
+      .attr("fill", (d, i) => color(i.toString()) as string);
+
+    g.append("g")
+      .attr("transform", `translate(0,${chartHeight})`)
+      .call(d3.axisBottom(x))
+      .selectAll("text")
+      .attr("fill", "white")
+      .attr("transform", "rotate(-45)")
+      .style("text-anchor", "end");
+
+    g.append("g")
+      .call(d3.axisLeft(y).ticks(5))
+      .selectAll("text")
+      .attr("fill", "white");
+
+    g.append("text")
+      .attr("x", chartWidth / 2)
+      .attr("y", -5)
+      .attr("text-anchor", "middle")
+      .attr("fill", "white")
+      .attr("font-size", 14)
+      .text(`Top 10 Countries (${selectedYear})`);
+  }
+
     function clearMultiSelection() {
       multiCountries = []; // reassign to trigger Svelte reactivity
       d3.select("#multi-country-chart").selectAll("*").remove(); // clear SVG
@@ -316,6 +399,7 @@
     updateGlobe();
     if (selectedCountryCode) drawCountryLineChart();
     if (multiCountries.length > 0) drawMultiCountryChart();
+    drawTop10BarChart();
   }
 </script>
 
@@ -343,10 +427,8 @@
     <div class="tooltip" style="left:{tooltipX}px; top:{tooltipY}px">{tooltipText}</div>
   {/if}
 
-  <svg id="country-chart" class="country-chart"></svg>
-  <svg id="top10-bar-chart" class="bar-chart"></svg>
   <Narration bind:selectedYear={selectedYear} />
-  <Graphs bind:clearMultiSelection={clearMultiSelection} />
+  <Graphs {clearMultiSelection} />
 </div>
 
 <style>
