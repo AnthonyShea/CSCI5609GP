@@ -36,6 +36,6 @@ declare module "$app/types" {
 		};
 		Pathname(): "/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/FullSizeRender.jpg" | "/co2.csv" | "/co2_state_coal.csv" | "/co2_state_natural_gas.csv" | "/co2_state_petroleum.csv" | "/co2_state_total.csv" | "/grass.jpg" | "/industrial_rev.avif" | "/mask.webp" | "/oil.jpg" | "/rernew.webp" | "/robots.txt" | "/ship.jpg" | "/summer_movies.csv" | string & {};
+		Asset(): "/co2.csv" | "/co2_state_coal.csv" | "/co2_state_natural_gas.csv" | "/co2_state_petroleum.csv" | "/co2_state_total.csv" | "/FullSizeRender.jpg" | "/grass.jpg" | "/industrial_rev.avif" | "/mask.webp" | "/oil.jpg" | "/rernew.webp" | "/robots.txt" | "/ship.jpg" | "/summer_movies.csv" | string & {};
 	}
 }

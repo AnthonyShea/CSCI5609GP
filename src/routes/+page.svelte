@@ -5,6 +5,7 @@
   import { idToAlpha3 } from "./idToAlpha3";
   import { base } from '$app/paths';
   import Narration from '$lib/Narration.svelte';
+  import Graphs from '$lib/Graphs.svelte';
 
   let svg: SVGSVGElement;
   let width = 0;
@@ -230,10 +231,11 @@
     g.append("text").attr("x", chartWidth / 2).attr("y", -5).attr("text-anchor", "middle").attr("fill", "white").attr("font-size", 14).text("Multi-country Comparison");
   }
 
-  function clearMultiSelection() {
-    multiCountries = [];
-    if (typeof document !== "undefined") d3.select("#multi-country-chart").selectAll("*").remove();
-  }
+    function clearMultiSelection() {
+      multiCountries = []; // reassign to trigger Svelte reactivity
+      d3.select("#multi-country-chart").selectAll("*").remove(); // clear SVG
+    }
+
 
   onMount(async () => {
     width = window.innerWidth;
@@ -332,15 +334,19 @@
     <div>Year: {selectedYear}</div>
   </div>
 
+  <div class="slider-container2">
+    <input type="range" min="1700" max="2023" step="1" bind:value={selectedYear} />
+    <div>Year: {selectedYear}</div>
+  </div>
+
   {#if tooltipVisible}
     <div class="tooltip" style="left:{tooltipX}px; top:{tooltipY}px">{tooltipText}</div>
   {/if}
 
   <svg id="country-chart" class="country-chart"></svg>
-  <button on:click={clearMultiSelection} style="position:absolute; left:20px; top:430px; z-index:5;">Clear Multi Selection</button>
-  <svg id="multi-country-chart" class="multi-country-chart" style="position:absolute; left:20px; top:460px; width:300px; height:200px; z-index:4;"></svg>
   <svg id="top10-bar-chart" class="bar-chart"></svg>
   <Narration bind:selectedYear={selectedYear} />
+  <Graphs bind:clearMultiSelection={clearMultiSelection} />
 </div>
 
 <style>
@@ -352,10 +358,11 @@
   .slider-container { position:absolute; bottom:20px; width:300px; left:50%; transform:translateX(-50%);
     z-index:3; display:flex; flex-direction:column; align-items:center; color:white; font-family:sans-serif;
   }
+  .slider-container2 { position:absolute; bottom:20px; width:300px; left:50%; transform:translateX(-50%);
+    z-index:3; display:flex; flex-direction:column; align-items:center; color:white; font-family:sans-serif;
+  }
+
   input[type="range"] { width:100%; }
   .tooltip { position: fixed; background: rgba(0,0,0,0.8); color:#fff; padding:4px 8px; border-radius:4px;
     pointer-events:none; font-family:sans-serif; font-size:14px; z-index:5; }
-  .country-chart { position:absolute; top:20px; left:20px; width:300px; height:200px; z-index:4; }
-  .multi-country-chart { width:300px; height:200px; }
-  .bar-chart { position:absolute; top:20px; right:20px; width:300px; height:300px; z-index:4; }
 </style>

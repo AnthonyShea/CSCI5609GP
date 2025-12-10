@@ -79,7 +79,7 @@
     .sidebar-container {
       position: absolute; /* Relative to the globe-container parent */
       top: 0;
-      right: 0;
+      left: 0;
       width: 350px; /* Adjust as needed */
       height: 100vh; /* Full height */
       z-index: 5; /* Ensure it is above the globe but maybe below tooltips */
@@ -89,6 +89,7 @@
       overflow-y: auto; /* Allow scrolling for long narratives */
       font-family: sans-serif;
       box-shadow: -5px 0 10px rgba(0, 0, 0, 0.5);
+      scrollbar-width: none;
     }
   
     h2 {
